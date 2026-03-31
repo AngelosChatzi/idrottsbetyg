@@ -336,12 +336,44 @@ select:focus, input[type="text"]:focus { border-color: var(--accent); }
 .moment-card.has-grade-E { background: #2a1010; border-color: var(--E)99; box-shadow: 0 2px 12px var(--E)18; }
 .moment-card.has-grade-F { background: #2a0d10; border-color: var(--F)99; box-shadow: 0 2px 12px var(--F)18; }
 
+.moment-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.moment-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+.moment-card:hover .moment-actions { opacity: 1; }
+
+.moment-action-btn {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  line-height: 1;
+  transition: background 0.12s;
+}
+.moment-action-btn:hover { background: var(--surface2); }
+.moment-action-btn.delete:hover { background: var(--accent2)22; }
+
 .moment-name {
   font-size: 0.82rem;
   color: var(--text);
   line-height: 1.4;
   font-weight: 500;
+  flex: 1;
 }
+
+
 
 /* GRADE SELECTOR */
 .grade-selector {
@@ -824,13 +856,18 @@ function renderContent() {
         const borderStyle = '';
 
         html += `<div class="moment-card ${hasGrade}" style="${borderStyle}">
-          <span class="moment-name">${m.name} <span style="font-size:0.62rem;color:var(--text-muted);opacity:.5">Åk${m.year}</span></span>
+          <div class="moment-card-top">
+            <span class="moment-name">${m.name} <span style="font-size:0.62rem;color:var(--text-muted);opacity:.5">Åk${m.year}</span></span>
+            <div class="moment-actions">
+              <button class="moment-action-btn" onclick="editMoment('${m.id}')" title="Redigera moment">✏️</button>
+              <button class="moment-action-btn delete" onclick="deleteMoment('${m.id}')" title="Ta bort moment">🗑</button>
+            </div>
+          </div>
           <div class="grade-selector">`;
 
         GRADES.forEach(grade => {
           const isActive = g === grade ? `active-${grade === '/' ? 'SLASH' : grade}` : '';
-          const label = grade;
-          html += `<button class="grade-btn ${isActive}" onclick="setGrade('${m.id}','${grade}')" title="${grade === '/' ? 'Ej bedömd/frånvaro' : 'Betyg ' + grade}">${label}</button>`;
+          html += `<button class="grade-btn ${isActive}" onclick="setGrade('${m.id}','${grade}')" title="${grade === '/' ? 'Ej bedömd/frånvaro' : 'Betyg ' + grade}">${grade}</button>`;
         });
 
         html += `</div></div>`;
@@ -924,6 +961,31 @@ function addMoment(cat) {
   const catMoment = state.moments.find(m => m.cat === cat);
   const color = catMoment ? catMoment.color : '#888';
   state.moments.push({ id: 'custom_' + Date.now(), cat, name, year, color });
+  save();
+  renderContent();
+}
+
+function editMoment(id) {
+  const m = state.moments.find(x => x.id === id);
+  if (!m) return;
+  const newName = prompt('Redigera momentets namn:', m.name);
+  if (!newName || !newName.trim()) return;
+  const newYearStr = prompt('Vilket år tillhör momentet? (7, 8 eller 9):', String(m.year));
+  const newYear = parseInt(newYearStr);
+  if (![7,8,9].includes(newYear)) { alert('Ange 7, 8 eller 9.'); return; }
+  m.name = newName.trim();
+  m.year = newYear;
+  save();
+  renderContent();
+}
+
+function deleteMoment(id) {
+  const m = state.moments.find(x => x.id === id);
+  if (!m) return;
+  if (!confirm(`Ta bort momentet "${m.name}"?\nBetygen för detta moment tas bort för alla elever.`)) return;
+  state.moments = state.moments.filter(x => x.id !== id);
+  // Remove grades for this moment from all students
+  state.students.forEach(s => { if (s.grades) delete s.grades[id]; });
   save();
   renderContent();
 }
